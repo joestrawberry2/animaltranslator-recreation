@@ -1,0 +1,531 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Animal Translator</title>
+<link rel="icon" type="image/png" href="animaltranslateicon.png">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<style>
+  body{
+    margin:0;
+    font-family:Roboto,Arial,sans-serif;
+    background:#fff;
+    color:#000;
+    min-height:100vh;
+    display:flex;
+    flex-direction:column;
+  }
+  header{
+    background:linear-gradient(#8a8a8a,#6e6e6e);
+    color:#fff;
+    font-size:20px;
+    font-weight:500;
+    padding:14px 16px;
+    box-shadow:0 2px 4px rgba(0,0,0,.3);
+  }
+  main{
+    padding:24px 16px;
+    max-width:480px;
+    margin:0 auto;
+    width:100%;
+    box-sizing:border-box;
+  }
+  .listen-label{
+    text-align:center;
+    font-size:20px;
+    font-weight:700;
+    margin-bottom:16px;
+  }
+  .mic-wrap{
+    display:flex;
+    justify-content:center;
+    margin-bottom:28px;
+  }
+  .mic-btn{
+    width:130px;
+    height:130px;
+    border:none;
+    border-radius:6px;
+    background:linear-gradient(#f2f2f2,#d8d8d8);
+    box-shadow:0 2px 6px rgba(0,0,0,.25);
+    cursor:pointer;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    transition:transform .1s ease, box-shadow .1s ease;
+  }
+  .mic-btn:active{
+    transform:scale(.96);
+    box-shadow:0 0 0 6px rgba(0,150,255,.15), 0 2px 6px rgba(0,0,0,.25);
+  }
+  .mic-btn.listening{
+    animation:pulse 1s infinite;
+  }
+  @keyframes pulse{
+    0%{box-shadow:0 0 0 0 rgba(255,80,80,.5);}
+    70%{box-shadow:0 0 0 18px rgba(255,80,80,0);}
+    100%{box-shadow:0 0 0 0 rgba(255,80,80,0);}
+  }
+  .mic-btn svg{width:64px;height:64px;fill:#bdbdbd;}
+
+  select{
+    width:100%;
+    padding:14px 12px;
+    font-size:17px;
+    font-family:inherit;
+    background:linear-gradient(#f7f7f7,#e2e2e2);
+    border:1px solid #b5b5b5;
+    border-radius:4px;
+    margin-bottom:12px;
+    appearance:none;
+    -webkit-appearance:none;
+    background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><path d='M7 10l5 5 5-5z' fill='%23444'/></svg>");
+    background-repeat:no-repeat;
+    background-position:right 12px center;
+    background-size:20px;
+  }
+
+  .translation-row{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    margin-top:20px;
+    margin-bottom:6px;
+  }
+  .translation-row h2{
+    font-size:19px;
+    font-weight:700;
+    margin:0;
+  }
+  .speaker-btn{
+    background:none;
+    border:none;
+    cursor:pointer;
+    padding:4px;
+  }
+  .speaker-btn svg{width:30px;height:30px;}
+
+  #translationText{
+    font-size:26px;
+    line-height:1.3;
+    min-height:100px;
+  }
+
+  .hint{
+    color:#999;
+    font-size:13px;
+    text-align:center;
+    margin-top:30px;
+  }
+
+  .overlay{
+    display:none;
+    position:fixed;
+    inset:0;
+    background:rgba(0,0,0,.55);
+    align-items:center;
+    justify-content:center;
+    z-index:50;
+  }
+  .overlay.show{display:flex;}
+  .listen-dialog{
+    width:min(85vw,420px);
+    background:#111;
+    border-radius:4px;
+    overflow:hidden;
+    box-shadow:0 8px 30px rgba(0,0,0,.6);
+  }
+  .listen-dialog .title{
+    color:#fff;
+    font-size:34px;
+    font-weight:400;
+    text-align:center;
+    padding:24px 20px 6px;
+  }
+  .listen-dialog .mic-big{
+    display:flex;
+    justify-content:center;
+    padding:10px 0 4px;
+  }
+  .listen-dialog .mic-big svg{
+    width:110px;height:110px;fill:#9e9e9e;
+  }
+  .listen-dialog.recording .mic-big svg{
+    fill:#fff;
+  }
+  .listen-dialog .countdown{
+    color:#fff;
+    text-align:center;
+    font-size:19px;
+    padding:6px 20px 24px;
+  }
+  .listen-dialog .cancel-btn{
+    display:block;
+    width:100%;
+    background:linear-gradient(#f7f7f7,#dcdcdc);
+    border:none;
+    border-top:1px solid #444;
+    padding:16px;
+    font-size:17px;
+    font-family:inherit;
+    color:#000;
+    cursor:pointer;
+  }
+</style>
+</head>
+<body>
+
+<header>Animal Translator</header>
+
+<main>
+  <div class="listen-label">Press to listen</div>
+  <div class="mic-wrap">
+    <button class="mic-btn" id="micBtn" aria-label="Press to listen">
+      <svg viewBox="0 0 24 24"><path d="M12 14a3 3 0 0 0 3-3V5a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.92V21h2v-3.08A7 7 0 0 0 19 11h-2z"/></svg>
+    </button>
+  </div>
+
+  <select id="animalSelect"></select>
+  <select id="langSelect"></select>
+
+  <div class="translation-row">
+    <h2>Translation</h2>
+    <button class="speaker-btn" id="speakBtn" aria-label="Speak translation">
+      <svg viewBox="0 0 24 24"><path fill="#ff9800" d="M3 9v6h4l5 5V4L7 9H3z"/><path fill="#9e9e9e" d="M16.5 12c0-1.77-1-3.29-2.5-4.03v8.06c1.5-.74 2.5-2.26 2.5-4.03z"/><path fill="#9e9e9e" d="M14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/></svg>
+    </button>
+  </div>
+  <div id="translationText"></div>
+</main>
+
+<div class="overlay" id="listenOverlay">
+  <div class="listen-dialog">
+    <div class="title" id="dialogTitle">Initializing</div>
+    <div class="mic-big" id="dialogMicWrap">
+      <svg viewBox="0 0 24 24">
+        <path d="M12 15a3 3 0 0 0 3-3V6a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3z"/>
+        <path d="M17 11a5 5 0 0 1-5 5 5 5 0 0 1-5-5H5a7 7 0 0 0 6 6.92V21h2v-3.08A7 7 0 0 0 19 11h-2z"/>
+        <line x1="2" y1="2" x2="22" y2="22" stroke="#111" stroke-width="3"/>
+      </svg>
+    </div>
+    <div class="countdown" id="countdownText">Preparing to recognize</div>
+    <button class="cancel-btn" id="cancelBtn">Cancel</button>
+  </div>
+</div>
+
+<script>
+const data = {
+  input_languages: ["Cat","Dog","Bird","Rabbit","Guinea Pig","Hamster","Tortoise","Horse","Chicken","Sheep","Donkey","Pig"],
+  output_languages: ["English"],
+  generic_answers: [
+    "Have you done something different to your hair?",
+    "Where have you been all day?",
+    "Please sir, can I have some more.",
+    "\"Please don't leave me alone again.\"",
+    "My goodness, I am looking hot today.",
+    "\"I've cracked it. The meaning of life. It's 42.\"",
+    "\"When I stare into space and look a little confused, I'm actually trying to figure out the meaning of life. Please don't interrupt next time!\"",
+    "\"Wittgenstein once said: \\\"If a lion could speak, we could not understand him.\\\" I'm inclined to agree, their accents are really heavy.\"",
+    "\"I could really do with a massage. I'm aching all over.\"",
+    "\"My, what a day I've had. How was yours?\"",
+    "Could I please have a snack? ",
+    "\"More food. Seriously. Chop chop. It's in the cubpoard.\"",
+    "\"I am battling with Kant's deontological ethic, what's your view on the nature of emotion in humans?\"",
+    "Who are you? Do you have food?",
+    "Hungry. Hungry. Hungry. Hungry.",
+    "Really, food please.",
+    "\"I refuse to believe you can't understand simple instructions.\"",
+    "Testing, testing, one two one two.",
+    "I love it when you look at me that way."
+  ],
+  cat_answers: null,
+  pig_answers: null,
+  donkey_answers: [
+    "Have you done something different to your hair?","Where have you been all day?","Please sir, can I have some more.",
+    "\"Please don't leave me alone again.\"","My goodness, I am looking hot today.","\"I've cracked it. The meaning of life. It's 42.\"",
+    "\"When I stare into space and look a little confused, I'm actually trying to figure out the meaning of life. Please don't interrupt next time!\"",
+    "\"Wittgenstein once said: \\\"If a lion could speak, we could not understand him.\\\" I'm inclined to agree, their accents are really heavy.\"",
+    "\"I could really do with a massage. I'm aching all over.\"","\"My, what a day I've had. How was yours?\"",
+    "Could I please have a snack? ","\"I am battling with Kant's deontological ethic, what's your view on the nature of emotion in humans?\"",
+    "Who are you? Do you have food?","Hungry. Hungry. Hungry. Hungry.","Really, food please.",
+    "\"I refuse to believe you can't understand simple instructions.\"","Testing, testing, one two one two.",
+    "I love it when you look at me that way.","\"Who's the new guy?\"","\"Oh, I'm the ass?\"",
+    "\"I don't feel like talking to you now.\"","You think you can understand me? Sure you can.","\"Cool. That's what I'm talking about.\""
+  ],
+  chicken_answers: [
+    "Have you done something different to your hair?","Where have you been all day?","Please sir, can I have some more.",
+    "\"Please don't leave me alone again.\"","My goodness, I am looking hot today.","\"I've cracked it. The meaning of life. It's 42.\"",
+    "\"When I stare into space and look a little confused, I'm actually trying to figure out the meaning of life. Please don't interrupt next time!\"",
+    "\"Wittgenstein once said: \\\"If a lion could speak, we could not understand him.\\\" I'm inclined to agree, their accents are really heavy.\"",
+    "\"I could really do with a massage. I'm aching all over.\"","\"My, what a day I've had. How was yours?\"",
+    "Could I please have a snack? ","\"More food. Seriously. Chop chop. It's in the cubpoard.\"",
+    "\"I am battling with Kant's deontological ethic, what's your view on the nature of emotion in humans?\"",
+    "Who are you? Do you have food?","Hungry. Hungry. Hungry. Hungry.","Really, food please.",
+    "\"I refuse to believe you can't understand simple instructions.\"","Testing, testing, one two one two.",
+    "I love it when you look at me that way.","Get away from me. Away. Away.","What are you doing? Not in my face, ok?",
+    "\"What's that? Eh?  Steady. Not not too close.\"","\"Food?  That's all I want. As much as you've got.\"",
+    "Ouch. Ouch. Ouch.  Got something in my foot."
+  ],
+  sheep_answers: [
+    "Have you done something different to your hair?","Where have you been all day?","Please sir, can I have some more.",
+    "\"Please don't leave me alone again.\"","My goodness, I am looking hot today.","\"I've cracked it. The meaning of life. It's 42.\"",
+    "\"When I stare into space and look a little confused, I'm actually trying to figure out the meaning of life. Please don't interrupt next time!\"",
+    "\"Wittgenstein once said: \\\"If a lion could speak, we could not understand him.\\\" I'm inclined to agree, their accents are really heavy.\"",
+    "\"I could really do with a massage. I'm aching all over.\"","\"My, what a day I've had. How was yours?\"",
+    "Could I please have a snack? ","\"More food. Seriously. Chop chop. It's in the cubpoard.\"",
+    "\"I am battling with Kant's deontological ethic, what's your view on the nature of emotion in humans?\"",
+    "Who are you? Do you have food?","Hungry. Hungry. Hungry. Hungry.","Really, food please.",
+    "\"I refuse to believe you can't understand simple instructions.\"","Testing, testing, one two one two.",
+    "I love it when you look at me that way.","Can I eat that thing?  Seriously.  It looks tasty.",
+    "We all pretty much do the same thing here.","\"I'm sorry, this is just weird.\"","Wait till I tell the others about this.",
+    "Do you know how we can bust out of here?","Run! Everybody run!","Form an orderly queue behind me."
+  ],
+  rabbit_answers: null,
+  guineapig_answers: null,
+  dog_answers: null,
+  hamster_answers: null,
+  bird_answers: null,
+  horse_answers: null,
+  tortoise_answers: [
+    "Slow down, you move too fast.",
+    "Chill, brother.",
+    "Quit poking that thing in my face. Please.",
+    "\"Life moves pretty fast. If you don't stop and look around sometimes, you may miss it.\""
+  ]
+};
+
+// shared base used by several animals, with per-animal extras appended
+const base = data.generic_answers;
+data.cat_answers = base.concat([
+  "I think a short nap is in order. Lap please.","Please tickle under my chin.",
+  "Why can\u2019t they just call it a door, I mean cat flap is so degrading.","I nap, therefore I am.",
+  "\"Can we move somewhere sunnier? There aren't enough hours in the day for me to work on my tan.\"",
+  "\"It's not stretching, it's an exercise in spacial awareness.\"",
+  "\"Might go out on the town tonight, don't wait up!\"",
+  "Please can you give me something that doesn\u2019t have chunks in it for once?",
+  "Please get off the sofa, I want a nap.","I could really use a stretch!"
+]);
+data.pig_answers = base.concat([
+  "\"I'm still hungry. You guys got anything else?\"","What is that thing anyway? Can I eat it?",
+  "I dropped some food here somewhere. I can smell it.","\"What's so wrong with living like a pig?\"",
+  "Oh yeah, you guys smell good. Really good.","This place is so hard to keep clean you know.",
+  "I dropped some food around here somewhere.","Can you guys give me some space?"
+]);
+data.rabbit_answers = base.concat([
+  "Most people complain, but I actually quite like this so-called rabbit food.",
+  "Yes, yes I know my fur is all soft and velvety.","\"I'm so glad you're not a magician.\"",
+  "Do you think I need to see they dentist?"
+]);
+data.guineapig_answers = base.concat([
+  "\"No photos please! I'm having a bad hair day.\"","\"Whatever you do, don't feed me after midnight.\"",
+  "I could really do with an extension. This place could use some wooden decking.",
+  "\"I'm thinking about changing my hairstyle, any suggestions?\"","Do you think highlights would look good on me?",
+  "\"I'm so much cuter than a hamster.\"","Hamsters are like, so last season."
+]);
+data.dog_answers = base.concat([
+  "Yay! Food again, my favourite.",
+  "\"Be honest, what do you guys do with it once you put it in a plastic bag? Honestly, it's a little disgusting.\"",
+  "My sense of smell is pretty amazing, so I know that was you last time.",
+  "\"Next time we go for a walk I'll be super good. Promise!\"","You talking to me?",
+  "\"Seriously, what's with the stick thing? It's getting old.\"","\"I'll love you forever.\"",
+  "Take me to your lamppost, I have urgent business to discuss.","This is my territory.",
+  "\"Please don't put me on a skateboard.\"",
+  "\"I've been philosophising about the dynamic hierarchy of our relationship and reached a few - sausages, sausages, I can smell sausages.\"",
+  "Excited! Excited!"
+]);
+data.hamster_answers = base.concat([
+  "\"I really need to get back into my fitness programme. I've put on 2 pounds.\"",
+  "Can I have a bigger cage please? Something with more turrets.",
+  "Whoever invented the wheel was a total genius.",
+  "\"Please put me on the stairs, it's a great workout for my glutes.\""
+]);
+data.bird_answers = base.concat([
+  "Marvel at my plumage!","SEE HOW PRETTY I AM!",
+  "\"I used to be a barbershop quartet, but i'm trying to get my solo career, pardon the pun, off the ground.\"",
+  "\"Where's the nearest sportscar? I've gotta go.\"",
+  "\"The view up there is pretty good but i'm afraid of heights.\""
+]);
+data.horse_answers = base.concat([
+  "\"Do you want to hear my impression of two empty coconut shells? It's very good.\"",
+  "Turn round and count to 10, i bet i can run 100m and back before you reach 9.",
+  "My cousin won the grand national last year. Seriously!",
+  "\"I'm only going to behave if you give me some of those delicious treats.\"",
+  "Glad to have you back in the saddle.","I could really do with a new pair of shoes.",
+  "My mane could do with a brush."
+]);
+
+const animalKeyMap = {
+  "Cat":"cat_answers","Dog":"dog_answers","Bird":"bird_answers","Rabbit":"rabbit_answers",
+  "Guinea Pig":"guineapig_answers","Hamster":"hamster_answers","Tortoise":"tortoise_answers",
+  "Horse":"horse_answers","Chicken":"chicken_answers","Sheep":"sheep_answers",
+  "Donkey":"donkey_answers","Pig":"pig_answers"
+};
+
+const animalSelect = document.getElementById('animalSelect');
+const langSelect = document.getElementById('langSelect');
+const micBtn = document.getElementById('micBtn');
+const translationText = document.getElementById('translationText');
+const speakBtn = document.getElementById('speakBtn');
+
+data.input_languages.forEach(a => {
+  const opt = document.createElement('option');
+  opt.value = a; opt.textContent = a;
+  animalSelect.appendChild(opt);
+});
+data.output_languages.forEach(l => {
+  const opt = document.createElement('option');
+  opt.value = l; opt.textContent = l;
+  langSelect.appendChild(opt);
+});
+
+// default to Cat on install
+animalSelect.value = "Cat";
+
+function pickRandom(arr){
+  return arr[Math.floor(Math.random() * arr.length)];
+}
+
+function translate(){
+  const animal = animalSelect.value;
+  const key = animalKeyMap[animal];
+  const pool = data[key] || data.generic_answers;
+  const phrase = pickRandom(pool);
+  translationText.textContent = phrase;
+  return phrase;
+}
+
+function speak(text){
+  if (!('speechSynthesis' in window)) return;
+  const clean = text.replace(/^"|"$/g, '').replace(/\\"/g, '"');
+  const utter = new SpeechSynthesisUtterance(clean);
+  speechSynthesis.cancel();
+  speechSynthesis.speak(utter);
+}
+
+const listenOverlay = document.getElementById('listenOverlay');
+const listenDialog = document.querySelector('.listen-dialog');
+const dialogTitle = document.getElementById('dialogTitle');
+const countdownText = document.getElementById('countdownText');
+const cancelBtn = document.getElementById('cancelBtn');
+
+const INIT_SECONDS = 3;
+const LISTEN_SECONDS = 4;
+let phaseTimer = null;
+let countdownInterval = null;
+let secondsLeft = 0;
+let mediaStream = null;
+let mediaRecorder = null;
+let recordedChunks = [];
+let cancelled = false;
+
+async function startListening(){
+  cancelled = false;
+  translationText.textContent = '';
+  recordedChunks = [];
+
+  // Phase 1: Initializing
+  listenDialog.classList.remove('recording');
+  dialogTitle.textContent = 'Initializing';
+  countdownText.textContent = 'Preparing to recognize';
+  listenOverlay.classList.add('show');
+  micBtn.classList.add('listening');
+
+  // Request real mic access
+  try {
+    mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+  } catch (err) {
+    if (cancelled) return;
+    countdownText.textContent = 'Microphone access denied';
+    setTimeout(() => { if (!cancelled) cancelListening(); }, 1200);
+    return;
+  }
+
+  if (cancelled) {
+    stopStream();
+    return;
+  }
+
+  phaseTimer = setTimeout(() => {
+    if (cancelled) return;
+    beginRecording();
+  }, INIT_SECONDS * 1000);
+}
+
+function beginRecording(){
+  // Phase 2: Listening — start real recording
+  listenDialog.classList.add('recording');
+  dialogTitle.textContent = 'Listening';
+  secondsLeft = LISTEN_SECONDS;
+  countdownText.textContent = secondsLeft + ' seconds remaining';
+
+  try {
+    mediaRecorder = new MediaRecorder(mediaStream);
+    mediaRecorder.ondataavailable = e => { if (e.data.size > 0) recordedChunks.push(e.data); };
+    mediaRecorder.start();
+  } catch (err) {
+    // MediaRecorder unsupported — continue visually without hard failure
+  }
+
+  countdownInterval = setInterval(() => {
+    secondsLeft--;
+    if (secondsLeft > 0){
+      countdownText.textContent = secondsLeft + ' seconds remaining';
+    } else {
+      finishListening();
+    }
+  }, 1000);
+}
+
+function stopStream(){
+  if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+    try { mediaRecorder.stop(); } catch(e){}
+  }
+  if (mediaStream) {
+    mediaStream.getTracks().forEach(t => t.stop());
+    mediaStream = null;
+  }
+}
+
+function finishListening(){
+  clearInterval(countdownInterval);
+  countdownInterval = null;
+  clearTimeout(phaseTimer);
+  phaseTimer = null;
+  stopStream();
+  listenOverlay.classList.remove('show');
+  micBtn.classList.remove('listening');
+  const phrase = translate();
+  speak(phrase);
+}
+
+function cancelListening(){
+  cancelled = true;
+  clearInterval(countdownInterval);
+  countdownInterval = null;
+  clearTimeout(phaseTimer);
+  phaseTimer = null;
+  stopStream();
+  listenOverlay.classList.remove('show');
+  micBtn.classList.remove('listening');
+  translationText.textContent = '';
+}
+
+micBtn.addEventListener('click', () => {
+  if (listenOverlay.classList.contains('show')) return;
+  startListening();
+});
+
+cancelBtn.addEventListener('click', cancelListening);
+
+speakBtn.addEventListener('click', () => {
+  if (translationText.textContent) speak(translationText.textContent);
+});
+
+animalSelect.addEventListener('change', () => {
+  translationText.textContent = '';
+});
+
+translationText.textContent = '';
+</script>
+
+</body>
+</html>
